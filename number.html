@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What's Your Number?</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+
+        /* Base Reset & Body */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #1a1c2c;
+            background: linear-gradient(135deg, #1a1c2c 0%, #4a192c 50%, #1a1c2c 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            color: white;
+        }
+
+        /* --- Glassmorphism --- */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border-radius: 24px;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 50rem; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .header-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+        }
+
+        .main-stage {
+            padding: 2rem;
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column; 
+            justify-content: center;
+            align-items: center;
+            min-height: 600px; 
+        }
+
+        .btn-play {
+            background: linear-gradient(45deg, #ff3366, #ff6b6b);
+            box-shadow: 0 4px 15px rgba(255, 51, 102, 0.4);
+            border: none;
+            color: white;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            padding: 0.5rem 2rem;
+            border-radius: 9999px;
+            font-size: 1.125rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-play:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 51, 102, 0.6);
+        }
+
+        .btn-play:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            opacity: 0.7;
+            box-shadow: none;
+        }
+
+        /* --- Grid Styling --- */
+        .grid-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            padding-bottom: 75%; 
+            height: 0;
+            margin: 0 auto;
+            perspective: 1000px;
+        }
+        
+        @supports (aspect-ratio: 4/3) {
+            .grid-container {
+                aspect-ratio: 4 / 3;
+                padding-bottom: 0;
+                height: auto;
+            }
+        }
+
+        .number-box {
+            position: absolute;
+            width: 12%; 
+            height: 16%; 
+            background: rgba(255, 255, 255, 0.07);
+            border: 2px solid rgba(255, 255, 255, 0.4); 
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 
+                left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                top 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                transform 0.2s ease, 
+                background-color 0.2s ease, 
+                box-shadow 0.2s ease,
+                border-color 0.2s ease;
+            overflow: visible;
+            cursor: default;
+            will-change: left, top, transform;
+            user-select: none;
+        }
+
+        .number-box.wave-active {
+            z-index: 50; 
+            border-color: white;
+        }
+
+        .number-box.selected {
+            z-index: 100;
+            background: white !important;
+            color: #d946ef;
+            font-weight: 900;
+            font-size: 1.5rem;
+            border-color: white;
+            box-shadow: 0 0 30px #d946ef, 0 0 60px #d946ef;
+            transform: scale(1.3) rotate(360deg) !important;
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* --- Cone Wrapper --- */
+        .cone-wrapper {
+            width: 400px;
+            height: 500px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 20px;
+        }
+
+        .cone-svg {
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.3));
+            overflow: visible;
+        }
+
+        .scoop-cap {
+            position: absolute;
+            bottom: 0; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0px; 
+            height: 30px;
+            background: #fff5e6; 
+            border-radius: 50% 50% 0 0;
+            z-index: 5;
+            pointer-events: none;
+            
+            background-image: 
+                radial-gradient(circle at 20% 40%, #60a5fa 2px, transparent 2.5px),
+                radial-gradient(circle at 80% 30%, #f472b6 2px, transparent 2.5px),
+                radial-gradient(circle at 50% 60%, #34d399 2px, transparent 2.5px),
+                radial-gradient(circle at 30% 70%, #fbbf24 2px, transparent 2.5px);
+            background-size: 30px 30px;
+            
+            transition: bottom 0.1s linear, width 0.1s linear;
+        }
+
+        /* Number Badge Style for Inside Cone */
+        .selected-number-badge {
+            position: absolute;
+            bottom: 35%; /* Approx 30-40% from bottom */
+            left: 50%;
+            transform: translateX(-50%) scale(0); /* Start hidden */
+            
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 50%;
+            min-width: 60px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: 900;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            z-index: 30; 
+            
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .flower {
+            position: absolute;
+            top: 100px; 
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            font-size: 100px;
+            z-index: 40;
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.3));
+        }
+
+        .pop-in {
+            animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: translateX(-50%) scale(0) rotate(-45deg); }
+            100% { transform: translateX(-50%) scale(1) rotate(0deg); }
+        }
+
+        .hidden-opacity { opacity: 0; pointer-events: none; position: absolute; }
+        .visible-opacity { opacity: 1; pointer-events: all; position: relative; }
+        .fade-transition { transition: opacity 0.5s ease; }
+        
+        @media (max-width: 600px) {
+            .grid-container { max-width: 340px; padding-bottom: 75%; }
+            .cone-wrapper { transform: scale(0.7); }
+            .number-box { font-size: 10px; }
+            .selected-number-badge { font-size: 24px; min-width: 50px; bottom: 35%; }
+            .main-stage { min-height: 400px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        
+        <!-- Header -->
+        <div class="glass-panel header-bar">
+            <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-purple-300 flex items-center">
+                What's Your Number? 
+                <!-- Added Header Number Span -->
+                <span id="headerNumber" class="hidden ml-3 text-white font-extrabold drop-shadow-md text-3xl"></span>
+            </h1>
+            <div class="flex items-center gap-4">
+                <div id="timerDisplay" class="hidden text-sm font-mono text-pink-200 bg-white/10 px-3 py-1 rounded-full">
+                    Next play: <span id="countdownVal">5</span>s
+                </div>
+                <button id="playBtn" class="btn-play">PLAY</button>
+            </div>
+        </div>
+
+        <!-- Main Stage -->
+        <div class="glass-panel main-stage">
+            
+            <!-- Grid Component -->
+            <div id="gridComponent" class="grid-container visible-opacity fade-transition">
+                <!-- Numbers injected via JS -->
+            </div>
+
+            <!-- SVG Ice Cream Cone Component -->
+            <div id="coneComponent" class="cone-wrapper hidden-opacity fade-transition">
+                
+                <div id="flower" class="flower"></div>
+                
+                <!-- Moving Scoop Cap -->
+                <div id="scoopCap" class="scoop-cap"></div>
+
+                <!-- SVG Cone -->
+                <svg class="cone-svg" width="200" height="300" viewBox="0 0 200 300">
+                    <defs>
+                        <!-- Waffle Pattern -->
+                        <pattern id="wafflePattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <rect width="20" height="20" fill="#d2a679"/>
+                            <path d="M0 20 L20 0 M0 0 L20 20" stroke="#c19a6b" stroke-width="2"/>
+                        </pattern>
+
+                        <!-- Sprinkles Pattern -->
+                        <pattern id="sprinklesPattern" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+                            <rect width="50" height="50" fill="#fff5e6" />
+                            <circle cx="10" cy="10" r="3" fill="#60a5fa" /> 
+                            <circle cx="35" cy="15" r="3" fill="#f472b6" /> 
+                            <circle cx="20" cy="35" r="3" fill="#34d399" /> 
+                            <circle cx="40" cy="40" r="3" fill="#fbbf24" /> 
+                            <circle cx="5" cy="40" r="2" fill="#a78bfa" /> 
+                        </pattern>
+                        
+                        <clipPath id="coneClip">
+                            <path d="M0,0 L200,0 L100,300 Z" />
+                        </clipPath>
+                    </defs>
+
+                    <!-- Cone Body -->
+                    <path d="M0,0 L200,0 L100,300 Z" fill="url(#wafflePattern)" />
+
+                    <!-- Fill Rect -->
+                    <g clip-path="url(#coneClip)">
+                        <rect id="svgFillRect" x="0" y="300" width="200" height="0" fill="url(#sprinklesPattern)" />
+                    </g>
+                    
+                    <!-- Overlay -->
+                    <path d="M0,0 L200,0 L100,300 Z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
+                </svg>
+
+                <div id="selectedBadge" class="selected-number-badge">1</div>
+                <div id="perfectMsg" class="absolute bottom-0 text-center w-full text-xl font-bold text-pink-300 opacity-0 transition-opacity duration-500 transform translate-y-8">🎉 Perfect! 🎉</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            gridSize: 48, 
+            cols: 8, 
+            rows: 6,
+            waveDuration: 15000, 
+            waveStepSpeed: 40, 
+            shuffleSpeed: 1000, 
+            fillDuration: 30000,
+            cooldownDuration: 5
+        };
+
+        let state = {
+            isPlaying: false,
+            isCheating: false,
+            selectedNumber: null,
+            fillAnimationId: null,
+            waveInterval: null,
+            shuffleInterval: null,
+            waveHeadIndex: 0,
+            numberPositions: [] 
+        };
+
+        let gridEl, coneEl, playBtn, timerDisplay, countdownVal, svgFillRect, scoopCapEl, badgeEl, flowerEl, perfectMsg, headerNumEl;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            gridEl = document.getElementById('gridComponent');
+            coneEl = document.getElementById('coneComponent');
+            playBtn = document.getElementById('playBtn');
+            timerDisplay = document.getElementById('timerDisplay');
+            countdownVal = document.getElementById('countdownVal');
+            svgFillRect = document.getElementById('svgFillRect');
+            scoopCapEl = document.getElementById('scoopCap');
+            badgeEl = document.getElementById('selectedBadge');
+            flowerEl = document.getElementById('flower');
+            perfectMsg = document.getElementById('perfectMsg');
+            headerNumEl = document.getElementById('headerNumber'); // New reference
+
+            if (gridEl) {
+                initGame();
+            }
+        });
+
+        function initGame() {
+            gridEl.innerHTML = '';
+            state.numberPositions = [];
+            
+            const numbers = Array.from({length: CONFIG.gridSize}, (_, i) => i + 1);
+            
+            for (let i = numbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+            }
+
+            numbers.forEach((num, index) => {
+                const div = document.createElement('div');
+                div.className = 'number-box';
+                div.textContent = num;
+                div.id = `num-box-${num}`; 
+                div.dataset.number = num;
+                
+                const col = index % CONFIG.cols;
+                const row = Math.floor(index / CONFIG.cols);
+                
+                state.numberPositions.push({
+                    num: num,
+                    col: col,
+                    row: row
+                });
+
+                div.style.left = `calc(${col * 12.5}% + 0.25%)`;
+                div.style.top = `calc(${row * 16.666}% + 0.33%)`;
+
+                gridEl.appendChild(div);
+            });
+
+            playBtn.onclick = (e) => startGame(e);
+        }
+
+        function startGame(e) {
+            if (state.isPlaying) return;
+            
+            state.isCheating = false;
+            if (e) {
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (y < rect.height * 0.35 && x > rect.width * 0.65) {
+                    state.isCheating = true;
+                }
+            }
+
+            state.isPlaying = true;
+            playBtn.disabled = true;
+            
+            state.waveHeadIndex = 0;
+            
+            state.waveInterval = setInterval(performWaveStep, CONFIG.waveStepSpeed);
+            
+            performNeighborShuffle(); 
+            state.shuffleInterval = setInterval(performNeighborShuffle, CONFIG.shuffleSpeed);
+
+            setTimeout(() => {
+                clearInterval(state.waveInterval);
+                clearInterval(state.shuffleInterval);
+                clearWaveVisuals();
+                performSelection();
+            }, CONFIG.waveDuration);
+        }
+
+        function performWaveStep() {
+            state.waveHeadIndex++;
+            const baseHue = (state.waveHeadIndex * 5) % 360;
+            const waveLength = 5;
+            
+            const activeSpatialIndices = [];
+            for(let i=0; i < waveLength; i++) {
+                let idx = (state.waveHeadIndex - i) % CONFIG.gridSize;
+                if (idx < 0) idx += CONFIG.gridSize;
+                activeSpatialIndices.push({ idx: idx, offset: i });
+            }
+
+            state.numberPositions.forEach(pos => {
+                const el = document.getElementById(`num-box-${pos.num}`);
+                if(!el) return;
+
+                const currentSpatialIndex = pos.row * CONFIG.cols + pos.col;
+                const activeItem = activeSpatialIndices.find(x => x.idx === currentSpatialIndex);
+
+                if (activeItem) {
+                    el.classList.add('wave-active');
+                    const hue = (baseHue - (activeItem.offset * 20)); 
+                    const scale = 1.25 - (activeItem.offset * 0.05);
+                    
+                    el.style.backgroundColor = `hsl(${hue}, 80%, 60%)`;
+                    el.style.transform = `scale(${scale}) translateZ(20px)`;
+                    el.style.boxShadow = `0 0 15px hsla(${hue}, 80%, 60%, 0.6)`;
+                } else {
+                    el.classList.remove('wave-active');
+                    el.style.backgroundColor = '';
+                    el.style.transform = 'scale(1)';
+                    el.style.boxShadow = '';
+                }
+            });
+        }
+
+        function performNeighborShuffle() {
+            const gridMap = new Map();
+            const unmovedIndices = [];
+            
+            state.numberPositions.forEach((pos, index) => {
+                gridMap.set(`${pos.col},${pos.row}`, index);
+                unmovedIndices.push(index);
+            });
+
+            for (let i = unmovedIndices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [unmovedIndices[i], unmovedIndices[j]] = [unmovedIndices[j], unmovedIndices[i]];
+            }
+
+            const processedIndices = new Set();
+
+            for (const idx of unmovedIndices) {
+                if (processedIndices.has(idx)) continue;
+
+                const current = state.numberPositions[idx];
+                
+                const potentialNeighbors = [
+                    { c: current.col, r: current.row - 1 }, 
+                    { c: current.col, r: current.row + 1 }, 
+                    { c: current.col - 1, r: current.row }, 
+                    { c: current.col + 1, r: current.row }  
+                ];
+
+                const validNeighborIndices = [];
+                for (const p of potentialNeighbors) {
+                    if (p.c < 0 || p.c >= CONFIG.cols || p.r < 0 || p.r >= CONFIG.rows) continue;
+
+                    const key = `${p.c},${p.r}`;
+                    if (gridMap.has(key)) {
+                        const neighborIdx = gridMap.get(key);
+                        if (!processedIndices.has(neighborIdx)) {
+                            validNeighborIndices.push(neighborIdx);
+                        }
+                    }
+                }
+
+                if (validNeighborIndices.length > 0) {
+                    const randNeighborIdx = validNeighborIndices[Math.floor(Math.random() * validNeighborIndices.length)];
+                    const neighbor = state.numberPositions[randNeighborIdx];
+
+                    const tempCol = current.col;
+                    const tempRow = current.row;
+                    current.col = neighbor.col;
+                    current.row = neighbor.row;
+                    neighbor.col = tempCol;
+                    neighbor.row = tempRow;
+
+                    processedIndices.add(idx);
+                    processedIndices.add(randNeighborIdx);
+
+                    updatePosition(current);
+                    updatePosition(neighbor);
+                }
+            }
+        }
+
+        function updatePosition(item) {
+            const el = document.getElementById(`num-box-${item.num}`);
+            if(el) {
+                el.style.left = `calc(${item.col * 12.5}% + 0.25%)`;
+                el.style.top = `calc(${item.row * 16.666}% + 0.33%)`; 
+            }
+        }
+
+        function clearWaveVisuals() {
+            state.numberPositions.forEach(pos => {
+                const el = document.getElementById(`num-box-${pos.num}`);
+                if (el) {
+                    el.classList.remove('wave-active');
+                    el.style.backgroundColor = ''; 
+                    el.style.transform = '';
+                    el.style.boxShadow = ''; 
+                }
+            });
+        }
+
+        function performSelection() {
+            let rand;
+            if (state.isCheating) {
+                rand = Math.floor(Math.random() * 9) + 1; 
+            } else {
+                rand = Math.floor(Math.random() * CONFIG.gridSize) + 1; 
+            }
+            
+            state.selectedNumber = rand;
+
+            const targetBox = document.getElementById(`num-box-${rand}`);
+            if (targetBox) {
+                targetBox.classList.add('selected');
+                createParticles(targetBox);
+            }
+
+            setTimeout(() => {
+                transitionToCone();
+            }, 2000);
+        }
+
+        function createParticles(element) {
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const colors = ['#ff00cc', '#3333ff', '#00ffff', '#ffffff', '#ffff00'];
+
+            for (let i = 0; i < 16; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                p.style.left = centerX + 'px';
+                p.style.top = centerY + 'px';
+                document.body.appendChild(p);
+
+                const angle = (i / 16) * 360 * (Math.PI / 180);
+                const velocity = 100 + Math.random() * 100;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+
+                const animation = p.animate([
+                    { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                    { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+                ], {
+                    duration: 800,
+                    easing: 'cubic-bezier(0, .9, .57, 1)'
+                });
+                animation.onfinish = () => p.remove();
+            }
+        }
+
+        function transitionToCone() {
+            gridEl.classList.replace('visible-opacity', 'hidden-opacity');
+            coneEl.classList.replace('hidden-opacity', 'visible-opacity');
+            
+            // RESET BADGE TO 1 INITIALLY
+            badgeEl.textContent = '1';
+            badgeEl.style.transform = 'translateX(-50%) scale(1)'; // Show badge
+            
+            // SHOW HEADER NUMBER
+            headerNumEl.textContent = `#${state.selectedNumber}`;
+            headerNumEl.classList.remove('hidden');
+
+            startConeFill(state.selectedNumber);
+        }
+
+        function startConeFill(number) {
+            const startTime = performance.now();
+            const duration = CONFIG.fillDuration;
+            const cycles = number; 
+            const randomPeaks = [];
+            for(let i=0; i < cycles - 1; i++) {
+                randomPeaks.push(0.15 + Math.random() * 0.65);
+            }
+
+            function animate(time) {
+                const elapsed = time - startTime;
+                if (elapsed >= duration) {
+                    // Update Counter to Final
+                    badgeEl.textContent = number;
+                    updateConeVisuals(100); 
+                    finishGame();
+                    return;
+                }
+                const durationPerCycle = duration / cycles;
+                const currentCycleIndex = Math.floor(elapsed / durationPerCycle);
+                const timeInCycle = elapsed % durationPerCycle;
+                const cycleProgress = timeInCycle / durationPerCycle;
+
+                // UPDATE COUNTER TEXT
+                const displayedNumber = Math.min(number, currentCycleIndex + 1);
+                badgeEl.textContent = displayedNumber;
+
+                let fillPercentage = 0;
+                if (currentCycleIndex >= cycles - 1) {
+                    fillPercentage = cycleProgress * 100;
+                } else {
+                    const peak = randomPeaks[currentCycleIndex];
+                    if (cycleProgress < 0.5) {
+                        fillPercentage = (cycleProgress * 2) * peak * 100;
+                    } else {
+                        const emptyProgress = (cycleProgress - 0.5) * 2;
+                        fillPercentage = (peak * (1 - emptyProgress)) * 100;
+                    }
+                }
+                updateConeVisuals(fillPercentage);
+                state.fillAnimationId = requestAnimationFrame(animate);
+            }
+            state.fillAnimationId = requestAnimationFrame(animate);
+        }
+
+        function updateConeVisuals(percentage) {
+            const clampedPct = Math.max(0, Math.min(100, percentage));
+            
+            const fillHeight = (clampedPct / 100) * 300;
+            const fillY = 300 - fillHeight;
+            
+            svgFillRect.setAttribute('y', fillY);
+            svgFillRect.setAttribute('height', fillHeight);
+
+            const widthAtHeight = (fillHeight / 300) * 200;
+            scoopCapEl.style.bottom = `${fillHeight}px`; 
+            scoopCapEl.style.width = `${widthAtHeight}px`;
+        }
+
+        function finishGame() {
+            const flowers = ['🌺', '🌸', '🌼', '🌻', '🌷'];
+            const randomFlower = flowers[Math.floor(Math.random() * flowers.length)];
+            flowerEl.textContent = randomFlower;
+            flowerEl.classList.add('pop-in');
+            perfectMsg.style.opacity = '1';
+            startCooldown();
+        }
+
+        function startCooldown() {
+            let timeLeft = CONFIG.cooldownDuration;
+            timerDisplay.classList.remove('hidden');
+            countdownVal.textContent = timeLeft;
+
+            const interval = setInterval(() => {
+                timeLeft--;
+                countdownVal.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    resetGame();
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            initGame();
+            state.isPlaying = false;
+            playBtn.disabled = false;
+            state.selectedNumber = null;
+            timerDisplay.classList.add('hidden');
+            perfectMsg.style.opacity = '0';
+            flowerEl.classList.remove('pop-in');
+            flowerEl.textContent = '';
+            
+            // Hide badge on reset
+            badgeEl.style.transform = 'translateX(-50%) scale(0)';
+            
+            // Hide Header Number
+            headerNumEl.classList.add('hidden');
+            headerNumEl.textContent = '';
+
+            svgFillRect.setAttribute('height', '0');
+            svgFillRect.setAttribute('y', '300');
+            scoopCapEl.style.width = '0px';
+            scoopCapEl.style.bottom = '0px';
+
+            clearWaveVisuals();
+            coneEl.classList.replace('visible-opacity', 'hidden-opacity');
+            gridEl.classList.replace('hidden-opacity', 'visible-opacity');
+        }
+    </script>
+</body>
+</html>
